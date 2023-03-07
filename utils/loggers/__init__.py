@@ -53,6 +53,14 @@ try:
 except (ModuleNotFoundError, ImportError, AssertionError):
     comet_ml = None
 
+try:
+    import mlflow
+
+    assert hasattr(mlflow, '__version__')  # verify package import not local dir
+    from utils.loggers.mlflow import MlflowLogger
+
+except (ModuleNotFoundError, ImportError, AssertionError):
+    mlflow = None
 
 class Loggers():
     # YOLOv5 Loggers class
