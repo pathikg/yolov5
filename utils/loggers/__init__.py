@@ -17,7 +17,7 @@ from utils.loggers.wandb.wandb_utils import WandbLogger
 from utils.plots import plot_images, plot_labels, plot_results
 from utils.torch_utils import de_parallel
 
-LOGGERS = ('csv', 'tb', 'wandb', 'clearml', 'comet')  # *.csv, TensorBoard, Weights & Biases, ClearML
+LOGGERS = ('csv', 'tb', 'wandb', 'clearml', 'comet', 'mlflow')  # *.csv, TensorBoard, Weights & Biases, ClearML
 RANK = int(os.getenv('RANK', -1))
 
 try:
@@ -138,6 +138,16 @@ class Loggers():
 
         else:
             self.comet_logger = None
+ 
+        # MLFlow 
+        if mlflow and 'mlflow' in self.include:
+            prefix = colorstr('MLFlow: ')
+            self.logger.info(f"{prefix}Start with MLFlow at http://127.0.0.1:5000")
+            self.opt.hyp = self.hyp  # add hyperparameters
+            self.mlflow_dir = "mlflow"
+            self.mlflow = MlflowLogger(self.mlflow_dir, self.opt)
+        else:
+            self.mlflow = None
 
     @property
     def remote_dataset(self):
