@@ -1,4 +1,6 @@
 import mlflow
+import os
+from PIL import Image
 from utils.general import LOGGER
 
 try:
@@ -33,6 +35,12 @@ class MlflowLogger():
         # End MLflow run
         mlflow.end_run()
 
+    def log_images(self, key, paths):
+        # Log images
+        for path in paths:
+            img = Image.open(path)
+            mlflow.log_image(img, os.path.basename(path))
+    
     def log_metrics(self, metrics, step):
         # Log metrics
         for name, value in metrics.items():

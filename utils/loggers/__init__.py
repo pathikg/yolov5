@@ -181,6 +181,8 @@ class Loggers():
             #    pass  # ClearML saves these images automatically using hooks
             if self.comet_logger:
                 self.comet_logger.on_pretrain_routine_end(paths)
+            if self.mlflow:
+                self.mlflow.log_images("Labels", paths)
 
     def on_train_batch_end(self, model, ni, imgs, targets, paths, vals):
         log_dict = dict(zip(self.keys[:3], vals))
@@ -198,6 +200,8 @@ class Loggers():
                     self.wandb.log({'Mosaics': [wandb.Image(str(f), caption=f.name) for f in files if f.exists()]})
                 if self.clearml:
                     self.clearml.log_debug_samples(files, title='Mosaics')
+                if self.mlflow:
+                    self.mlflow.log_images('Mosaics', files)
 
         if self.comet_logger:
             self.comet_logger.on_train_batch_end(log_dict, step=ni)
