@@ -1,6 +1,7 @@
 from pathlib import Path
 import mlflow
 import os
+import torch
 from PIL import Image
 from utils.general import LOGGER
 
@@ -36,8 +37,11 @@ class MlflowLogger():
         mlflow.set_tracking_uri(self.log_dir)
         mlflow.set_experiment(self.project_name)
         mlflow.start_run()
+        
+        self.log_params(vars(self.opt))
+        self.log_params(self.opt.hyp)
 
-    def __del__(self):
+    def finish_run(self):
         # End MLflow run
         mlflow.end_run()
         
@@ -59,7 +63,7 @@ class MlflowLogger():
             self.bbox_interval = opt.bbox_interval = (opt.epochs // 10) if opt.epochs > 10 else 1
             if opt.evolve or opt.noplots:
                 self.bbox_interval = opt.bbox_interval = opt.epochs + 1  # disable bbox_interval
-
+                
     def log_images(self, key, paths):
         # Log images
         for path in paths:
@@ -69,12 +73,13 @@ class MlflowLogger():
     def log_metrics(self, metrics, step):
         # Log metrics
         for name, value in metrics.items():
+            name = name.replace(':',' ')
             mlflow.log_metric(name, value, step=step)
 
-    def log_artifacts(self, artifacts, step):
+    def log_artifacts(self, artifacts):
         # Log artifacts
         for name, file in artifacts.items():
-            mlflow.log_artifact(file, name, step=step)
+            mlflow.log_artifact(file, name)
             
     def log_model(self, path, opt, epoch, fitness_score, best_model=False):
         metadata = {

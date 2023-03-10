@@ -144,7 +144,7 @@ class Loggers():
             prefix = colorstr('MLFlow: ')
             self.logger.info(f"{prefix}Start with MLFlow at http://127.0.0.1:5000")
             self.opt.hyp = self.hyp  # add hyperparameters
-            self.mlflow_dir = "mlflow"
+            self.mlflow_dir = self.opt.mlflow_log_dir
             self.mlflow = MlflowLogger(self.mlflow_dir, self.opt)
         else:
             self.mlflow = None
@@ -278,6 +278,15 @@ class Loggers():
 
         if self.comet_logger:
             self.comet_logger.on_fit_epoch_end(x, epoch=epoch)
+            
+        if self.mlflow:
+            if best_fitness == fi:
+                best_results = [epoch] + vals[3:7]
+                best_dict = dict(zip(self.best_keys, best_results))
+                self.mlflow.log_metrics(best_dict, step=epoch)
+                
+            self.mlflow.log_metrics(x, step=epoch)
+            self.mlflow.current_epoch += 1
 
     def on_model_save(self, last, epoch, final_epoch, best_fitness, fi):
         # Callback runs on model save event
@@ -288,11 +297,13 @@ class Loggers():
                 self.clearml.task.update_output_model(model_path=str(last),
                                                       model_name='Latest Model',
                                                       auto_delete_file=False)
+            print("Model saving using mlflow")
             if self.mlflow:
+                prefix = colorstr("MLflow: ")
+                self.logger.info(f"{prefix}saving model weights")
                 self.mlflow.log_model(last.parent, self.opt, epoch, fi, best_model=best_fitness == fi)
 
         if self.comet_logger:
-                self.mlflow.log_model(last.parent, self.opt, epoch, fi, best_model=best_fitness == fi)
             self.comet_logger.on_model_save(last, epoch, final_epoch, best_fitness, fi)
 
     def on_train_end(self, last, best, epoch, results):
@@ -318,6 +329,18 @@ class Loggers():
                                    aliases=['latest', 'best', 'stripped'])
             self.wandb.finish_run()
 
+        if self.mlflow:
+            self.mlflow.log_metrics(dict(zip(self.keys[3:10], results)), step=epoch)
+            self.mlflow.log_images('Results', files)
+            if not self.opt.evolve:
+                artifacts = {
+                    "weights" : str(best if best.exists() else last)
+                }
+                self.mlflow.log_artifacts(artifacts)
+                best_weights_path = str(best if best.exists() else last)
+                self.mlflow.register_model(best_weights_path)
+                self.mlflow.finish_run()
+        
         if self.clearml and not self.opt.evolve:
             self.clearml.task.update_output_model(model_path=str(best if best.exists() else last),
                                                   name='Best Model',
@@ -333,7 +356,8 @@ class Loggers():
             self.wandb.wandb_run.config.update(params, allow_val_change=True)
         if self.comet_logger:
             self.comet_logger.on_params_update(params)
-
+        if self.mlflow:
+            self.mlflow.log_params(params)
 
 class GenericLogger:
     """
@@ -345,7 +369,7 @@ class GenericLogger:
         include:         loggers to include
     """
 
-    def __init__(self, opt, console_logger, include=('tb', 'wandb')):
+    def __init__(self, opt, console_logger, include=('tb', 'wandb', 'mlflow')):
         # init default loggers
         self.save_dir = Path(opt.save_dir)
         self.include = include
@@ -361,6 +385,11 @@ class GenericLogger:
             self.wandb = wandb.init(project=web_project_name(str(opt.project)),
                                     name=None if opt.name == 'exp' else opt.name,
                                     config=opt)
+        else:
+            self.wandb = None
+        if mlflow and 'mlflow' in self.include:
+            self.mlflow_dir = "mlflow"
+            self.mlflow = MlflowLogger(self.mlflow_dir, opt)
         else:
             self.wandb = None
 
@@ -379,6 +408,9 @@ class GenericLogger:
 
         if self.wandb:
             self.wandb.log(metrics, step=epoch)
+            
+        if self.mlflow:
+            self.mlflow.log_metrics(metrics, step=epoch)
 
     def log_images(self, files, name='Images', epoch=0):
         # Log images to all loggers
@@ -391,6 +423,9 @@ class GenericLogger:
 
         if self.wandb:
             self.wandb.log({name: [wandb.Image(str(f), caption=f.name) for f in files]}, step=epoch)
+            
+        if self.mlflow:
+            self.mlflow.log_images(name, files)
 
     def log_graph(self, model, imgsz=(640, 640)):
         # Log model graph to all loggers
@@ -403,11 +438,17 @@ class GenericLogger:
             art = wandb.Artifact(name=f'run_{wandb.run.id}_model', type='model', metadata=metadata)
             art.add_file(str(model_path))
             wandb.log_artifact(art)
+            
+        if self.mlflow:
+            mlflow.log_dict(metadata, f"weights/{epoch}.json")
+            mlflow.log_artifact(str(model_path), artifact_path='weights/epoch_{epoch}.pt')
 
     def update_params(self, params):
         # Update the parameters logged
         if self.wandb:
             wandb.run.config.update(params, allow_val_change=True)
+        if self.mlflow:
+            self.mlflow.log_params(params)
 
 
 def log_tensorboard_graph(tb, model, imgsz=(640, 640)):
