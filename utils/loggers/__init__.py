@@ -213,6 +213,9 @@ class Loggers():
 
         if self.comet_logger:
             self.comet_logger.on_train_epoch_end(epoch)
+            
+        if self.mlflow:
+            self.mlflow.current_epoch = epoch + 1 
 
     def on_val_start(self):
         if self.comet_logger:
@@ -231,12 +234,14 @@ class Loggers():
 
     def on_val_end(self, nt, tp, fp, p, r, f1, ap, ap50, ap_class, confusion_matrix):
         # Callback runs on val end
-        if self.wandb or self.clearml:
+        if self.wandb or self.clearml or self.mlflow:
             files = sorted(self.save_dir.glob('val*.jpg'))
         if self.wandb:
             self.wandb.log({'Validation': [wandb.Image(str(f), caption=f.name) for f in files]})
         if self.clearml:
             self.clearml.log_debug_samples(files, title='Validation')
+        if self.mlflow:
+            self.mlflow.log_images('Validation', files)
 
         if self.comet_logger:
             self.comet_logger.on_val_end(nt, tp, fp, p, r, f1, ap, ap50, ap_class, confusion_matrix)
@@ -283,8 +288,11 @@ class Loggers():
                 self.clearml.task.update_output_model(model_path=str(last),
                                                       model_name='Latest Model',
                                                       auto_delete_file=False)
+            if self.mlflow:
+                self.mlflow.log_model(last.parent, self.opt, epoch, fi, best_model=best_fitness == fi)
 
         if self.comet_logger:
+                self.mlflow.log_model(last.parent, self.opt, epoch, fi, best_model=best_fitness == fi)
             self.comet_logger.on_model_save(last, epoch, final_epoch, best_fitness, fi)
 
     def on_train_end(self, last, best, epoch, results):
