@@ -364,7 +364,7 @@ class Loggers:
                     model_name="Latest Model",
                     auto_delete_file=False,
                 )
-            print("Model saving using mlflow")
+
             if self.mlflow:
                 prefix = colorstr("MLflow: ")
                 self.logger.info(f"{prefix}saving model weights")
