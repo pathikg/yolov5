@@ -1,13 +1,10 @@
 # Repo-specific GitIgnore ----------------------------------------------------------------------------------------------
-# *.jpg
-# *.jpeg
+
 *.png
 *.bmp
 *.tif
 *.tiff
 *.heic
-*.JPG
-*.JPEG
 *.PNG
 *.BMP
 *.TIF
@@ -25,12 +22,9 @@
 
 storage.googleapis.com
 runs/*
-# data/*
-# data/images/*
 !data/*.yaml
 !data/hyps
 !data/scripts
-# !data/images
 !data/images/zidane.jpg
 !data/images/bus.jpg
 !data/*.sh
@@ -255,11 +249,3 @@ com_crashlytics_export_strings.xml
 crashlytics.properties
 crashlytics-build.properties
 fabric.properties
-
-
-!mlflow/
-mlruns/
-test/
-pibit-poc/
-
-!*.jpg 
