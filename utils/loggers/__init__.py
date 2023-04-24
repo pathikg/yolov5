@@ -541,8 +541,8 @@ class GenericLogger:
             wandb.log_artifact(art)
 
         if self.mlflow:
-            mlflow.log_dict(metadata, f"weights/{epoch}.json")
-            mlflow.log_artifact(
+#             self.mlflow.log_dict(metadata, f"weights/{epoch}.json")
+            self.mlflow.log_artifact(
                 str(model_path), artifact_path="weights/epoch_{epoch}.pt"
             )
 
