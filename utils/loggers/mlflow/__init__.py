@@ -1,5 +1,6 @@
 from pathlib import Path
 import mlflow
+import time
 import os
 import torch
 from PIL import Image
@@ -37,7 +38,7 @@ class MlflowLogger:
 
         # Start MLflow run
         # mlflow.set_tracking_uri(self.log_dir)
-        # mlflow.set_experiment(self.project_name)
+        mlflow.set_experiment(self.project_name)
         mlflow.start_run()
 
         # self.log_params(vars(self.opt))
@@ -74,7 +75,22 @@ class MlflowLogger:
         # Log images
         for path in paths:
             img = Image.open(path)
-            mlflow.log_image(img, Path(key) / os.path.basename(path))
+            max_retries = 5
+            retry_delay = 2
+            
+            retries = 0
+            while retries < max_retries:
+                try:
+                    mlflow.log_image(img, Path(key) / os.path.basename(path))
+                    break
+                except Exception as e:
+                    LOGGER.warning(
+                        f"Failed to log image to MLflow. Retrying in {retry_delay} seconds. Error: {e}"
+                    )
+                    time.sleep(retry_delay)
+                    retries += 1
+
+            # mlflow.log_image(img, Path(key) / os.path.basename(path))
 
     def log_metrics(self, metrics, step):
         # Log metrics
@@ -85,7 +101,21 @@ class MlflowLogger:
     def log_artifacts(self, artifacts):
         # Log artifacts
         for name, file in artifacts.items():
-            mlflow.log_artifact(file, name)
+            max_retries = 5
+            retry_delay = 2
+            
+            retries = 0
+            while retries < max_retries:
+                try:
+                    mlflow.log_artifact(file, name)
+                    break
+                except Exception as e:
+                    LOGGER.warning(
+                        f"Failed to log artifact to MLflow. Retrying in {retry_delay} seconds. Error: {e}"
+                    )
+                    time.sleep(retry_delay)
+                    retries += 1
+            # mlflow.log_artifact(file, name)
 
     def log_model(self, path, opt, epoch, fitness_score, best_model=False):
         metadata = {
@@ -98,7 +128,21 @@ class MlflowLogger:
         }
         # mlflow.log_dict(metadata, f"weights/epoch{epoch}.json")
         # mlflow.log_artifact(str(path / "last.pt"), artifact_path="weights") # condition to be added, if last.pt exists then remove and add 
-        mlflow.log_artifact(str(path / f"epoch{epoch}.pt"), artifact_path="weights")
+        max_retries = 5
+        retry_delay = 2
+
+        retries = 0
+        while retries < max_retries:
+            try:
+                mlflow.log_artifact(str(path / f"epoch{epoch}.pt"), artifact_path="weights")
+                break
+            except Exception as e:
+                LOGGER.warning(
+                    f"Failed to log artifact to MLflow. Retrying in {retry_delay} seconds. Error: {e}"
+                )
+                time.sleep(retry_delay)
+                retries += 1
+        # mlflow.log_artifact(str(path / f"epoch{epoch}.pt"), artifact_path="weights")
 
     def log_params(self, params):
         mlflow.log_params(params)
@@ -106,8 +150,28 @@ class MlflowLogger:
     def register_model(self, weights_path):
         model = torch.hub.load("ultralytics/yolov5", "custom", path=weights_path)
         LOGGER.info("Logging best weights")
-        mlflow.pytorch.log_model(
-            model,
-            artifact_path="YoloV5",
-            pip_requirements=mlflow.pytorch.get_default_pip_requirements(),
-        )
+        
+        max_retries = 5
+        retry_delay = 2
+
+        retries = 0
+        while retries < max_retries:
+            try:
+                mlflow.pytorch.log_model(
+                    model,
+                    artifact_path="YoloV5",
+                    pip_requirements=mlflow.pytorch.get_default_pip_requirements(),
+                )
+                break
+            except Exception as e:
+                LOGGER.warning(
+                    f"Failed to register model to MLflow. Retrying in {retry_delay} seconds. Error: {e}"
+                )
+                time.sleep(retry_delay)
+                retries += 1
+        
+        # mlflow.pytorch.log_model(
+        #     model,
+        #     artifact_path="YoloV5",
+        #     pip_requirements=mlflow.pytorch.get_default_pip_requirements(),
+        # )
